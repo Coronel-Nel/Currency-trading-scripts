@@ -1,0 +1,51 @@
+local operation = {}
+
+local runService = game:GetService("RunService")
+
+local currency = {} -- currency table
+
+function operation:init() -- sets up the currency
+	currency["Bronze"] = currency.Bronze or 0 -- gets current coins values, if nil then sets to 0
+	currency["Silver"] = currency.Silver or 0
+	currency["Gold"] = currency.Gold or 0
+	
+	print("currency was initiated")	
+end
+
+function operation:new(value) -- adds a value to your currency
+	--[[local addCurrency = {
+		__add = function(myCurrency, value)
+			
+			for i,v in myCurrency do
+				myCurrency[i] = v + value
+			end
+			return myCurrency
+		end
+	}
+	setmetatable(currency, addCurrency)]]
+	currency.Bronze = currency.Bronze + value
+	
+	--currency = currency + 10 --gets your current currency and adds 10(the 'value')
+	print("Currency was added")
+	return currency.Bronze
+end
+
+function operation:getCurrency(bronze, silver) -- gets the current currency
+	if currency.Bronze >= 100 then
+		currency.Silver = currency.Silver + currency.Bronze/100
+		currency.Bronze = 0
+	end
+	if currency.Silver >= 100 then
+		currency.Gold = currency.Gold + currency.Silver/100
+		currency.Silver = 0
+	end
+	if currency.Bronze < 0 and currency.Silver or currency.Gold > 0 then
+		currency.Bronze = currency.Bronze + currency.Silver *100
+		currency.Silver = 0
+		
+	end
+	print("Currency was required, you have " .. currency.Bronze .. " and " .. currency.Silver)
+	return currency.Bronze , currency.Silver
+end
+
+return operation
