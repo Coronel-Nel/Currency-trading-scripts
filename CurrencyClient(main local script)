@@ -1,0 +1,210 @@
+local player = game.Players.LocalPlayer
+local playersInGame = game.Players:GetPlayers()
+
+local currencyEvent = game.ReplicatedStorage:WaitForChild("CurrencyEvent")
+local tradeFunction = game.ReplicatedStorage:WaitForChild("TradeFunction")
+local tradeBindable = game.ReplicatedStorage:WaitForChild("TradeBindable")
+local tradeEvent = game.ReplicatedStorage:WaitForChild("TradeEvent")
+local tradeCurrencyFunction = game.ReplicatedStorage:WaitForChild("TradeCurrencyFunction")
+
+local npc = game.Workspace.Shop:WaitForChild("TradeNpc")
+local npcTouchPart = npc:WaitForChild("HumanoidRootPart")
+
+-- modules --
+local trade = require(script.TradeModule)
+
+-- guis --
+local screenGui = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui
+local DialogueText = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui:WaitForChild("DialogueText")
+local DialogueOption1 = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui:WaitForChild("DialogueOption1")
+local DialogueOption2 = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui:WaitForChild("DialogueOption2")
+local DialogueOption3 = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui:WaitForChild("DialogueOption3")
+local shopOptions = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui:WaitForChild("ShopOptions")
+local tradeGui = player.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui:WaitForChild("TradeGui")
+local tradingMenu = tradeGui:WaitForChild("TradingMenu")
+local tradingFrame = tradingMenu.TradeRequestMain.TradingTab:WaitForChild("TradingFrame")
+local acceptTrade = tradingFrame:WaitForChild("acceptTrade")
+local declineTrade = tradingFrame:WaitForChild("declineTrade")
+
+-- coins guis --
+local bronzeCoin = player.PlayerGui.Coins.ScreenGui.CoinTypes.Bronze.CoinAmout
+local silverCoin = player.PlayerGui.Coins.ScreenGui.CoinTypes.Silver.CoinAmout
+local goldcoin = player.PlayerGui.Coins.ScreenGui.CoinTypes.Gold.CoinAmout
+
+local isOpen = false
+
+local currentBronze, currentSilver
+local function GetCurrency()
+	currencyEvent:FireServer("GetCurrency") -- requests the currency from the server
+	currencyEvent.OnClientEvent:Connect(function(bronze, silver)	
+		bronzeCoin.Text = bronze
+		silverCoin.Text = silver
+		currentBronze = bronze
+		currentSilver = silver
+	end)
+end
+
+npcTouchPart.ClickDetector.MouseClick:Connect(function(plr)
+	if isOpen then return end
+	DialogueText.TextLabel.Text = "What you're looking for ?"
+	screenGui.Enabled = true
+	isOpen = true
+end)
+
+--option 1 clicked
+
+local isClicked = false
+DialogueOption1.TextButton.MouseButton1Click:Connect(function()
+	if isClicked then
+		shopOptions.Visible = false
+		isClicked = false
+	else
+	shopOptions.Visible = true
+	isClicked = true
+	end
+end)
+
+--shop options--
+local clicked = false
+local debounce = false
+for i, option in shopOptions:GetChildren() do
+	if option:IsA("TextButton") then
+	option.MouseButton1Click:Connect(function()
+	local price = option:GetAttribute("Price")
+		
+		if currentSilver ~= nil and currentSilver >= price  and not debounce then
+		DialogueText.TextLabel.Text = "are you sure you buying this for ".. price .. " Silver ?"
+			if clicked then
+				print("You bought a ".. i)
+				DialogueText.TextLabel.Text = "Thanks for your purchase"
+				currencyEvent:FireServer("purchasedItem", price)
+				debounce = true
+			end
+		else 
+			DialogueText.TextLabel.Text = "just get out of here and go work."
+		end
+	clicked = true
+	debounce = false
+	task.wait(1)
+	clicked = false
+	end)
+	end
+end
+
+-- option 2 clicked --
+
+DialogueOption2.TextButton.MouseButton1Click:Connect(function()
+	currencyEvent:FireServer("AddToCurrency") -- fires event to add currency	
+	GetCurrency()
+	task.wait(1)
+	print("Current bronzes/silvers are " .. currentBronze, currentSilver)
+end)
+
+-- option 3 clicked --
+DialogueOption3.TextButton.MouseButton1Click:Connect(function()
+	screenGui.Enabled = false
+	isOpen = false
+end)
+
+--trade system--
+local testPlayers = {"Felipe", "Jorge", "Augustinho"} -- for testing players table
+
+--tradeGui.ScrollingFrame.Template.Text = player.Name
+local function clone(plr : Player)
+	local frame = tradeGui.ScrollingFrame.Template:Clone()
+	frame.Parent = tradeGui.ScrollingFrame
+	frame.Name = plr.Name -- use .Name if real players table, else remove it!
+	frame.Text = plr.Name 
+end
+
+game.Players.PlayerAdded:Connect(function(plr)
+	clone(plr)
+end)
+
+for i, plr in playersInGame do -- change to Players Table if in game
+	clone(plr)
+end
+
+local PlayersInTable = {} -- table with all textLabels/players
+for i, v in tradeGui.ScrollingFrame:GetChildren() do
+	if v:IsA("TextButton") then
+		table.insert(PlayersInTable, v)
+		print(PlayersInTable)
+	end
+end
+
+game.Players.PlayerRemoving:Connect(function(plr)
+	for i,v in PlayersInTable do 
+		if v == plr then
+			v:remove()
+		end
+	end
+end)
+
+local confirm = false
+local TradeStatus
+
+for i,v in PlayersInTable do -- sends trade to server
+	v.MouseButton1Click:Connect(function()
+		local function GetPlayerInTrade() -- returns player trade was sended for 
+			for i, player in playersInGame do 
+				if player.Name == v.Name then
+					return player
+				end
+			end
+		end
+		local playerTradingWith = GetPlayerInTrade()
+		
+if playerTradingWith.Name == player.Name then return end -- checks if not trade request is self
+
+		TradeStatus = trade.start(player, playerTradingWith)
+		
+		if TradeStatus then
+			print("Player already on trade")
+		elseif not TradeStatus then 
+			trade:request(playerTradingWith)
+		end
+	end)
+end
+
+--what client will do when a trade was recieved
+trade:recieved(player)
+
+tradingFrame.SendCoinAmount.FocusLost:Connect(function()
+	local text = tradingFrame.SendCoinAmount.Text
+	local number = tonumber(text) 
+
+	if number then
+		text = tostring(number) 
+	else
+		text = "0" -- if not a number then sets to 0
+	end
+end)
+
+
+--when trade was accepted:
+local clicks = 0
+acceptTrade.Text = "Send"
+acceptTrade.MouseButton1Click:Connect(function()
+		if clicks == 0 then
+			clicks += 1
+			print("client: offer confirmed!")
+			acceptTrade.Text = "Offer sended!"
+			task.wait(.5)
+			acceptTrade.Text = "Confirm"
+		elseif clicks == 1 then
+			clicks += 1
+			print("client: Offer sended!")
+			local value = tostring(tradingFrame.SendCoinAmount.Text)
+			tradeEvent:FireServer(value,"SendOffer")
+			task.wait(3)
+			clicks = 0
+		end
+end)
+
+declineTrade.MouseButton1Click:Connect(function()
+	print("client: declined offer")
+	tradeEvent:FireServer("CancelTrade")
+	acceptTrade.Text = "Send"
+	clicks = 0
+end)
