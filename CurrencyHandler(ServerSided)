@@ -1,0 +1,130 @@
+local dataStore = game:GetService("DataStoreService")
+
+local tradeNpc = game.Workspace.Shop:WaitForChild("TradeNpc")
+
+--Events --
+local currencyEvent = Instance.new("RemoteEvent")
+currencyEvent.Parent = game.ReplicatedStorage
+currencyEvent.Name = "CurrencyEvent"
+local tradeFunction = game.ReplicatedStorage:WaitForChild("TradeFunction")
+local tradeCurrencyFunction = game.ReplicatedStorage:WaitForChild("TradeCurrencyFunction")
+local tradeBindable = game.ReplicatedStorage:WaitForChild("TradeBindable")
+local tradeEvent = Instance.new("RemoteEvent")
+tradeEvent.Parent = game.ReplicatedStorage
+tradeEvent.Name = "TradeEvent"
+
+-- modules --
+local operations = require(script.OperationsHandler)
+local guiModule = require(script.GuisModule)
+
+game.Players.PlayerAdded:Connect(function(player) -- playerAdded
+	operations.init(player)
+end)
+
+currencyEvent.OnServerEvent:Connect(function(plr, eventType)
+	if eventType == "GetCurrency" then		
+		local currentBronzes, currentSilver = operations.getCurrency(plr)
+		currencyEvent:FireClient(plr, currentBronzes, currentSilver) -- passes the current currency to the client
+		
+	return end
+end)
+
+currencyEvent.OnServerEvent:Connect(function(plr, eventType) -- adds value to currency
+	if eventType == "AddToCurrency" then
+		operations.new(plr, 10)
+		
+	end	
+end)
+
+currencyEvent.OnServerEvent:Connect(function(plr, eventType, value) -- adds value to currency
+	if eventType == "purchasedItem" then
+		operations.new(plr, -value *100)
+		local currentBronzes, currentSilver = operations.getCurrency(plr)
+		currencyEvent:FireClient(plr, currentBronzes, currentSilver)
+
+	end	
+end)
+
+--- trading ----
+
+local playersInTrade = {}
+
+--trade:start()
+
+tradeFunction.OnServerInvoke = function(plr1 : Player, plr2 : Player, type) -- checks if given players are in a trade
+--plr1: Player requesting the trade
+--plr2: Player recieving the trade
+print("Function called")
+print(plr1, plr2)
+if type == "CheckPlayersTrading" then
+	guiModule.Init(plr1,plr2)
+	if table.find(playersInTrade, plr1.UserId or plr2.UserId) then print(playersInTrade) return true
+	else
+		table.insert(playersInTrade, plr1.UserId)
+		table.insert(playersInTrade, plr2.UserId)
+		print(playersInTrade)
+		return false
+	end
+end
+end
+
+local function removePlayersInTrade(plr1, plr2)
+	for i, v in pairs(playersInTrade) do -- remove users from players table
+while table.find(playersInTrade, plr1 or plr2) do
+		if v == plr1 then
+			table.remove(playersInTrade, i)
+			print("removed ".. v .." from trade")
+		elseif v == plr2 then
+			table.remove(playersInTrade, i)
+			print("removed ".. v .." from trade")
+		end
+		break		
+	end
+end
+end
+
+--trade:request()
+
+tradeEvent.OnServerEvent:Connect(function(plr,playerOnTrade,type)
+	if type == "TradeRequestToServer" then
+		guiModule.TradeRequest(playerOnTrade)
+		print("Requested trade to server..." .. playerOnTrade.Name .." to ".. plr.Name)
+		tradeEvent:FireAllClients(plr, playerOnTrade)
+	end
+end)
+
+tradeEvent.OnServerEvent:Connect(function(plr, RecievedTradePlr, type)
+	if type == "TradeAccepted" then
+		guiModule.TradeAccepted(RecievedTradePlr)
+		print("Clicked server recieved")
+	end
+end)
+tradeEvent.OnServerEvent:Connect(function(plr, RecievedTradePlr, type)
+	if type == "TradeDeclined" then 
+		local plr1, plr2 = guiModule.ended()
+		removePlayersInTrade(plr1, plr2)
+		print(plr.UserId, RecievedTradePlr.UserId)
+	end
+end)
+
+local isTrading = false
+
+--trading confirmed
+tradeEvent.OnServerEvent:Connect(function(plrWhoSended,value,type)
+	if type == "SendOffer" then
+		isTrading = true
+		print("Offer sended to server")
+		local plr1, plr2 = guiModule.getTradeValues(plrWhoSended, value)
+		task.wait(5)	
+		removePlayersInTrade(plr1, plr2)
+	end
+end)
+
+--trade declined
+tradeEvent.OnServerEvent:Connect(function(plr, type)
+	if type == "CancelTrade" then
+		local plr1, plr2 = guiModule.ended()
+		removePlayersInTrade(plr1, plr2)
+		
+	end
+end)
