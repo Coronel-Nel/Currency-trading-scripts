@@ -1,0 +1,47 @@
+local trade = {}
+
+local tradeBindable = game.ReplicatedStorage:WaitForChild("TradeBindable")
+local tradeEvent = game.ReplicatedStorage:WaitForChild("TradeEvent")
+local tradeFunction = game.ReplicatedStorage:WaitForChild("TradeFunction")
+print("abcd")
+
+
+local tradeStatus
+function trade:start(plrTradingWith : Player) -- player recieving the trade 
+	print("Trade starting...")
+	local playersResult = tradeFunction:InvokeServer(plrTradingWith, "CheckPlayersTrading")
+	tradeStatus = playersResult
+	print(tradeStatus)
+	return tradeStatus
+	
+end
+
+function trade:request(plrTradingWith : Player)
+	if not tradeStatus and tradeStatus ~= nil then
+	print("Attempting to trade " .. plrTradingWith.Name)
+	--local CheckTradeStatus = trade.start()
+	--request = tradeFunction.InvokeServer("TradeRequest") -- should return player answer to the trade
+	tradeEvent:FireServer(plrTradingWith, "TradeRequestToServer") -- if doesnt work try remoteEvent with FireAllClients
+	end
+end
+
+local clicks = 0
+function trade:recieved(plr : Player) -- executes when local player recieves a trade 'request()'
+	tradeEvent.OnClientEvent:Connect(function(requestedTrade : Player, recievedTrade : Player)
+		if plr.Name == recievedTrade.Name then -- change to userId
+			print(plr.Name .. " has been requested on a trade by:" .. requestedTrade.Name)
+			local acceptedTrade = plr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui.TradingMenu.TradeRequestMain.Accept
+			local declinedTrade = plr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui.TradingMenu.TradeRequestMain.Decline
+			acceptedTrade.MouseButton1Click:Connect(function()
+				tradeEvent:FireServer(requestedTrade, "TradeAccepted")
+			end)
+			declinedTrade.MouseButton1Click:Connect(function()
+				tradeEvent:FireServer(requestedTrade, "TradeDeclined")		
+			end)
+		end
+	end)
+end
+
+
+
+return trade
