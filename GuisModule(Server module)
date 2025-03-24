@@ -1,0 +1,122 @@
+local gui = {}
+
+local RecievedTradePlrGuis = {}
+
+local RequestedTradePlrGuis = {}
+
+--Make this script local!!! gl
+-- client didn't work, clientScripts cannot acess both clients
+
+function gui.Init(requestedTradePlr : Player, recievedTradePlr : Player)
+
+	print("Player is recieving the trade")
+	RecievedTradePlrGuis.Player = recievedTradePlr
+	RecievedTradePlrGuis.TradeGui = recievedTradePlr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui
+	RecievedTradePlrGuis.TradingMenu = RecievedTradePlrGuis.TradeGui.TradingMenu
+	RecievedTradePlrGuis.TradeRequestMain = RecievedTradePlrGuis.TradingMenu.TradeRequestMain
+	RecievedTradePlrGuis.TradingFrame = RecievedTradePlrGuis.TradeRequestMain.TradingTab.TradingFrame
+	
+	print("Player is requesting the trade")
+	RequestedTradePlrGuis.Player = requestedTradePlr
+	RequestedTradePlrGuis.TradeGui = requestedTradePlr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui
+	RequestedTradePlrGuis.TradingMenu = requestedTradePlr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui.TradingMenu
+	RequestedTradePlrGuis.TradeRequestMain = requestedTradePlr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui.TradingMenu.TradeRequestMain
+	RequestedTradePlrGuis.TradingFrame = requestedTradePlr.PlayerGui.NpcGuis.TradeNpcDialogues.ScreenGui.TradeGui.TradingMenu.TradeRequestMain.TradingTab.TradingFrame
+	
+end
+
+function gui.TradeRequest(RecievedTradePlr : Player)
+	print(RecievedTradePlr, RecievedTradePlr.UserId)
+	
+		RequestedTradePlrGuis.TradingMenu.Visible = true
+		RequestedTradePlrGuis.TradeRequestMain.TradeRequest.Visible = true
+		RequestedTradePlrGuis.TradeRequestMain.TradeRequest.Text = ("Trade to " ..RecievedTradePlr.Name.. " sended")
+		-----------------------------
+		RecievedTradePlrGuis.TradingMenu.Visible = true
+		RecievedTradePlrGuis.TradeRequestMain.TradeRequest.Text = ("Recieved trade from" .. RequestedTradePlrGuis.Player.Name)	
+		for i, v in RecievedTradePlrGuis.TradeRequestMain:GetChildren() do -- enables tradeRequestMain Gui's
+			if v:IsA("Folder") then continue end
+			v.Visible = true
+		end
+end
+
+local isTrading = false
+function gui.TradeAccepted(RecievedTradePlr : Player)
+	print("Trading accepted Guis enabled")
+	isTrading = true
+	RequestedTradePlrGuis.TradingFrame.Visible = true
+	RequestedTradePlrGuis.TradeRequestMain.Accept.Visible = false
+	RequestedTradePlrGuis.TradeRequestMain.Decline.Visible = false
+	RequestedTradePlrGuis.TradeRequestMain.TradeRequest.Visible = false
+	RecievedTradePlrGuis.TradeRequestMain.TradeRequest.Text = ""
+	for i, v in RequestedTradePlrGuis.TradingFrame:GetChildren() do
+		v.Visible = true
+	end
+
+	----------------------------
+	RecievedTradePlrGuis.TradingFrame.Visible = true
+	RecievedTradePlrGuis.TradeRequestMain.Accept.Visible = false
+	RecievedTradePlrGuis.TradeRequestMain.Decline.Visible = false
+	RecievedTradePlrGuis.TradeRequestMain.TradeRequest.Text = ""
+	for i, v in RecievedTradePlrGuis.TradingFrame:GetChildren() do
+		v.Visible = true
+	end
+end
+
+function gui.ended(RecievedTradePlr : Player)
+	print("gui closing")
+	isTrading = false
+	RequestedTradePlrGuis.TradingMenu.Visible = false
+	RequestedTradePlrGuis.TradingFrame.Visible = false
+	RequestedTradePlrGuis.TradeRequestMain.TradeRequest.Text = ""
+	for i, v in RequestedTradePlrGuis.TradeRequestMain:GetChildren() do -- enables tradeRequestMain Gui's
+		if v:IsA("Folder") then continue end
+		v.Visible = false
+	end
+	RequestedTradePlrGuis.TradingFrame.SendCoinAmount.Text = ""
+	RequestedTradePlrGuis.TradingFrame.RecieveCoinAmount.Text = ""
+	for i, v in RequestedTradePlrGuis.TradingFrame:GetChildren() do 
+		v.Visible = false
+	end
+	---------------------------------
+	RecievedTradePlrGuis.TradingFrame.Visible = false
+	RecievedTradePlrGuis.TradingMenu.Visible = false
+	RecievedTradePlrGuis.TradeRequestMain.TradeRequest.Text = ""
+	for i, v in RecievedTradePlrGuis.TradeRequestMain:GetChildren() do -- enables tradeRequestMain Gui's
+		if v:IsA("Folder") then continue end
+		v.Visible = false
+	end
+	RecievedTradePlrGuis.TradingFrame.SendCoinAmount.Text = ""
+	RecievedTradePlrGuis.TradingFrame.RecieveCoinAmount.Text = ""
+	for i, v in RecievedTradePlrGuis.TradingFrame:GetChildren() do 
+		v.Visible = false
+	end
+	return RecievedTradePlrGuis.Player.UserId, RequestedTradePlrGuis.Player.UserId
+end
+
+local confirm1 = false
+local confirm2 = false
+function gui.getTradeValues(plr, value)
+print("Getting trade values...")
+if plr == RecievedTradePlrGuis.Player then
+	RequestedTradePlrGuis.TradingFrame.RecieveCoinAmount.Text = value
+	confirm1 = true
+elseif plr == RequestedTradePlrGuis.Player then
+	RecievedTradePlrGuis.TradingFrame.RecieveCoinAmount.Text = value
+	confirm2 = true
+end
+	if confirm1 and confirm2 then
+		print("trade ending...")
+		for i = 1,3 do 
+			print(i)
+			task.wait(i)
+		end
+		print("Trade ended!")---------
+		gui.ended()
+	end
+	return RecievedTradePlrGuis.Player.UserId, RequestedTradePlrGuis.Player.UserId
+end
+
+
+
+return gui
